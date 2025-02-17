@@ -29,9 +29,7 @@ def load_project(filename: str) -> dict:
     if path.suffix != '.sb3':
         raise IsNotAScratchFileError(path)
     with ZipFile(path) as zipfile:
-        captureWarnings(False)
         project = json.loads(zipfile.read('project.json').decode())
-        captureWarnings(True)
     return project
 
 
@@ -46,7 +44,9 @@ def save_project(infile: str, outfile: str, project: dict) -> None:
         raise IsNotAScratchFileError(outpath)
     outpath.write_bytes(inpath.read_bytes())
     with ZipFile(outpath, 'a') as zipfile:
+        captureWarnings(True)
         zipfile.writestr('project.json', json.dumps(project))
+        captureWarnings(False)
 
 
 def parse_rename_options(options: dict, name_name: str) -> Callable[[], str]:
