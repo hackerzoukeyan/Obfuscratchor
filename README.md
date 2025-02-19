@@ -1,2 +1,1 @@
-![image](icon.png)  
-[Obfuscratchor](https://obfuscratchor.pythonanywhere.com/)
+[![image](icon.png)](https://obfuscratchor.pythonanywhere.com/)
