@@ -1,5 +1,5 @@
 # Sample Program to Use the Obfuscation Module
-from obfuscratchor import obfuscate
+from obfuscratchor_test_hex import obfuscate
 
 def main():
     # Input and output file names
@@ -35,7 +35,13 @@ def main():
         'rename_backdrops': {
             'rename_backdrops_to': 'random_hex',  # Rename backdrops to random hex values
             'backdrops_name_length': 6
-        }
+        },
+        'rename_my_blocks': {
+            'rename_my_blocks_to': 'random_unicode_char_range',  # Rename my blocks to random unicode characters
+            'my_blocks_name_length': 8,
+            'range_start': 0xE000,  # Unicode Private Use Area start
+            'range_end': 0xF8FF   # Unicode Private Use Area end
+        },
     }
 
     try:
