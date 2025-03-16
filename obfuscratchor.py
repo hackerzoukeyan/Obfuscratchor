@@ -1,12 +1,17 @@
 from pathlib import Path
 from logging import captureWarnings
+from copy import deepcopy
 from typing import Callable
 import time
 import json
 import secrets
 import random
+import re
 from zipfile import ZipFile
 from warnings import warn
+
+__all__ = ['obfuscate', 'OptionError', 'UnknownOption', 'IsNotAScratchFileError']
+__version__ = '1.2'
 
 
 class IsNotAScratchFileError(Exception):
@@ -27,13 +32,13 @@ class OptionError(Exception):
 def load_project(filename: str) -> dict:
     """
     Load the project data from a Scratch (.sb3) file.
-    
+
     Parameters:
         filename (str): The path to the Scratch project file to be loaded.
-    
+
     Returns:
         dict: A dictionary containing the project data.
-        
+
     Raises:
         FileNotFoundError: If the specified file does not exist.
         IsNotAScratchFileError: If the file does not have a .sb3 extension.
@@ -51,15 +56,15 @@ def load_project(filename: str) -> dict:
 def save_project(infile: str, outfile: str, project: dict) -> None:
     """
     Save the modified project data back to a Scratch (.sb3) file.
-    
+
     Parameters:
         infile (str): The path to the original Scratch project file.
         outfile (str): The path to the new Scratch project file where the project data will be saved.
         project (dict): The dictionary containing the modified project data.
-    
+
     Returns:
         None
-    
+
     Raises:
         FileNotFoundError: If the original file does not exist.
         IsNotAScratchFileError: If either the infile or outfile does not have a .sb3 extension.
@@ -81,14 +86,14 @@ def save_project(infile: str, outfile: str, project: dict) -> None:
 def parse_rename_options(options: dict, name_name: str) -> Callable[[], str]:
     """
     Parse the renaming options provided by the user and return a callable function that generates new names.
-    
+
     Parameters:
         options (dict): A dictionary containing the renaming options.
         name_name (str): A string indicating the type of item to rename ('variables', 'lists', 'sprites', 'costumes', 'sounds', 'backdrops').
-    
+
     Returns:
         Callable[[], str]: A function that generates a new name according to the provided options.
-        
+
     Raises:
         OptionError: If the provided options are invalid or missing.
     """
@@ -116,11 +121,11 @@ def parse_rename_options(options: dict, name_name: str) -> Callable[[], str]:
 def rename_variables(targets: list[dict], options: dict) -> list[dict]:
     """
     Rename variables in the Scratch project according to the provided options.
-    
+
     Parameters:
         targets (list[dict]): A list of dictionaries representing the targets in the Scratch project.
         options (dict): A dictionary containing the renaming options for variables.
-    
+
     Returns:
         list[dict]: A list of dictionaries representing the targets with renamed variables.
     """
@@ -141,11 +146,11 @@ def rename_variables(targets: list[dict], options: dict) -> list[dict]:
 def rename_lists(targets: list[dict], options: dict) -> list[dict]:
     """
     Rename lists in the Scratch project according to the provided options.
-    
+
     Parameters:
         targets (list[dict]): A list of dictionaries representing the targets in the Scratch project.
         options (dict): A dictionary containing the renaming options for lists.
-    
+
     Returns:
         list[dict]: A list of dictionaries representing the targets with renamed lists.
     """
@@ -166,11 +171,11 @@ def rename_lists(targets: list[dict], options: dict) -> list[dict]:
 def rename_sprites(targets: list[dict], options: dict) -> list[dict]:
     """
     Rename sprites in the Scratch project according to the provided options.
-    
+
     Parameters:
         targets (list[dict]): A list of dictionaries representing the targets in the Scratch project.
         options (dict): A dictionary containing the renaming options for sprites.
-    
+
     Returns:
         list[dict]: A list of dictionaries representing the targets with renamed sprites.
     """
@@ -183,11 +188,11 @@ def rename_sprites(targets: list[dict], options: dict) -> list[dict]:
 def rename_costumes(targets: list[dict], options: dict) -> list[dict]:
     """
     Rename costumes in the Scratch project according to the provided options.
-    
+
     Parameters:
         targets (list[dict]): A list of dictionaries representing the targets in the Scratch project.
         options (dict): A dictionary containing the renaming options for costumes.
-    
+
     Returns:
         list[dict]: A list of dictionaries representing the targets with renamed costumes.
     """
@@ -201,16 +206,16 @@ def rename_costumes(targets: list[dict], options: dict) -> list[dict]:
 def rename_sounds(targets: list[dict], options: dict) -> list[dict]:
     """
     Rename sounds in the Scratch project according to the provided options.
-    
+
     Parameters:
         targets (list[dict]): A list of dictionaries representing the targets in the Scratch project.
         options (dict): A dictionary containing the renaming options for sounds.
-    
+
     Returns:
         list[dict]: A list of dictionaries representing the targets with renamed sounds.
     """
     rename_sounds_to = parse_rename_options(options, 'sounds')
-    for sprite in targets[1:]:
+    for sprite in targets:
         for sound in sprite['sounds']:
             sound['name'] = rename_sounds_to()
     return targets
@@ -219,11 +224,11 @@ def rename_sounds(targets: list[dict], options: dict) -> list[dict]:
 def rename_backdrops(targets: list[dict], options: dict) -> list[dict]:
     """
     Rename backdrops in the Scratch project according to the provided options.
-    
+
     Parameters:
         targets (list[dict]): A list of dictionaries representing the targets in the Scratch project.
         options (dict): A dictionary containing the renaming options for backdrops.
-    
+
     Returns:
         list[dict]: A list of dictionaries representing the targets with renamed backdrops.
     """
@@ -233,18 +238,45 @@ def rename_backdrops(targets: list[dict], options: dict) -> list[dict]:
     return targets
 
 
+def rename_my_blocks(targets: list[dict], options: dict) -> list[dict]:
+    """
+    Rename my blocks in the Scratch project according to the provided options.
+
+    Parameters:
+        targets (list[dict]): A list of dictionaries representing the targets in the Scratch project.
+        options (dict): A dictionary containing the renaming options for backdrops.
+
+    Returns:
+        list[dict]: A list of dictionaries representing the targets with renamed backdrops.
+    """
+    rename_my_blocks_to = parse_rename_options(options, 'my_blocks')
+    names = {}
+    for i, target in enumerate(deepcopy(targets)):
+        for key, val in target['blocks'].items():
+            if val['opcode'] == 'procedures_prototype':
+                original_proccode = val['mutation']['proccode']
+                new_proccode = '%s %s' % (rename_my_blocks_to(), ' '.join(re.findall(r'%[nsb]', original_proccode)))
+                names[original_proccode] = new_proccode
+                # print(new_proccode)  # test
+                targets[i]['blocks'][key]['mutation']['proccode'] = new_proccode
+            if val['opcode'] == 'procedures_call':
+                original_proccode = val['mutation']['proccode']
+                targets[i]['blocks'][key]['mutation']['proccode'] = names[original_proccode]
+    return targets
+
+
 def obfuscate(infile: str, outfile: str, options: dict) -> float:
     """
     Obfuscate a Scratch project by renaming its elements according to the provided options.
-    
+
     Parameters:
         infile (str): The path to the original Scratch project file.
         outfile (str): The path to the new Scratch project file where the obfuscated project will be saved.
         options (dict): A dictionary containing the obfuscation options.
-    
+
     Returns:
         float: The elapsed time taken to obfuscate the Scratch project.
-        
+
     Raises:
         TypeError: If the provided options are not a dictionary.
         OptionError: If there is an error in the provided options dictionary.
@@ -264,6 +296,7 @@ def obfuscate(infile: str, outfile: str, options: dict) -> float:
         'rename_costumes': dict,
         'rename_sounds': dict,
         'rename_backdrops': dict,
+        'rename_my_blocks': dict,
     }
     for option_name, option_type in option_names.items():
         if option_name in options and isinstance((option := options.pop(option_name)), option_type):
@@ -274,7 +307,3 @@ def obfuscate(infile: str, outfile: str, options: dict) -> float:
     project['targets'] = targets
     save_project(infile, outfile, project)
     return time.perf_counter() - t0
-
-
-__all__ = ['obfuscate', 'OptionError', 'UnknownOption', 'IsNotAScratchFileError']
-__version__ = '1.0'
