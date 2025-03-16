@@ -1,5 +1,5 @@
 # Sample Program to Use the Obfuscation Module
-from obfuscratchor_test_hex import obfuscate
+from obfuscratchor import obfuscate
 
 def main():
     # Input and output file names
