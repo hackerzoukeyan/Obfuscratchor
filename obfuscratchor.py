@@ -11,7 +11,7 @@ from zipfile import ZipFile
 from warnings import warn
 
 __all__ = ['obfuscate', 'OptionError', 'UnknownOption', 'IsNotAScratchFileError']
-__version__ = '1.4'
+__version__ = '2.0'
 
 
 class IsNotAScratchFileError(Exception):
@@ -267,6 +267,27 @@ def rename_my_blocks(targets: list[dict], options: dict) -> list[dict]:
     return targets
 
 
+def convert_integers_to_hexadecimal(targets: list[dict], convert: bool) -> list[dict]:
+    """
+    Convert integers in the Scratch project to hexadecimal format according to the provided options.
+
+    Parameters:
+        targets (list[dict]): A list of dictionaries representing the targets in the Scratch project.
+        convert (bool): Convert integers to hexadecimal format?
+
+    Returns:
+        list[dict]: A list of dictionaries representing the targets with converted numbers.
+    """
+    if convert:
+        for target in targets:
+            for key, val in target['blocks'].items():
+                if (inputs := val['inputs']) and inputs:
+                    for k, v in inputs.items():
+                        if v[1] and v[1][0] == 4 and re.match(r'^\d+$', (num := v[1][1])):
+                            target['blocks'][key]['inputs'][k][1][1] = hex(int(num))
+    return targets
+
+
 def obfuscate(infile: str, outfile: str, options: dict) -> float:
     """
     Obfuscate a Scratch project by renaming its elements according to the provided options.
@@ -299,6 +320,7 @@ def obfuscate(infile: str, outfile: str, options: dict) -> float:
         'rename_sounds': dict,
         'rename_backdrops': dict,
         'rename_my_blocks': dict,
+        'convert_integers_to_hexadecimal': bool,
     }
     for option_name, option_type in option_names.items():
         if option_name in options and isinstance((option := options.pop(option_name)), option_type):
