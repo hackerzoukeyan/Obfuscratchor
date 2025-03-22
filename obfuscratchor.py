@@ -11,7 +11,7 @@ from zipfile import ZipFile
 from warnings import warn
 
 __all__ = ['obfuscate', 'OptionError', 'UnknownOption', 'IsNotAScratchFileError']
-__version__ = '1.2'
+__version__ = '1.4'
 
 
 class IsNotAScratchFileError(Exception):
@@ -251,14 +251,16 @@ def rename_my_blocks(targets: list[dict], options: dict) -> list[dict]:
     """
     rename_my_blocks_to = parse_rename_options(options, 'my_blocks')
     names = {}
-    for i, target in enumerate(deepcopy(targets)):
+    deepcopied_target = deepcopy(targets)
+    for i, target in enumerate(deepcopied_target):
         for key, val in target['blocks'].items():
             if val['opcode'] == 'procedures_prototype':
                 original_proccode = val['mutation']['proccode']
                 new_proccode = '%s %s' % (rename_my_blocks_to(), ' '.join(re.findall(r'%[nsb]', original_proccode)))
                 names[original_proccode] = new_proccode
-                # print(new_proccode)  # test
                 targets[i]['blocks'][key]['mutation']['proccode'] = new_proccode
+    for i, target in enumerate(deepcopied_target):
+        for key, val in target['blocks'].items():
             if val['opcode'] == 'procedures_call':
                 original_proccode = val['mutation']['proccode']
                 targets[i]['blocks'][key]['mutation']['proccode'] = names[original_proccode]
