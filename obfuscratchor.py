@@ -11,7 +11,7 @@ from zipfile import ZipFile
 from warnings import warn
 
 __all__ = ['obfuscate', 'OptionError', 'UnknownOption', 'IsNotAScratchFileError']
-__version__ = '2.0'
+__version__ = '2.1'
 
 
 class IsNotAScratchFileError(Exception):
@@ -283,7 +283,7 @@ def convert_integers_to_hexadecimal(targets: list[dict], convert: bool) -> list[
             for key, val in target['blocks'].items():
                 if (inputs := val['inputs']) and inputs:
                     for k, v in inputs.items():
-                        if v[1] and v[1][0] == 4 and re.match(r'^\d+$', (num := v[1][1])):
+                        if v[1] and v[1][0] == 4 and re.match(r'^-?\d+$', (num := v[1][1])):
                             target['blocks'][key]['inputs'][k][1][1] = hex(int(num))
     return targets
 
