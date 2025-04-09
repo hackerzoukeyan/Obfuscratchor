@@ -2,14 +2,14 @@
 # Obfuscratchor: A simple obfuscation tool for Scratch.
 example usage:
 ```python
-# Sample Program to Use the Obfuscation Module
-from obfuscratchor import obfuscate
+# Sample program to use the Obfuscratchor module
+from Obfuscratchor import obfuscate
 
 def main():
     # Input and output file names
     infile = 'test/Project.sb3'  # Replace with your Scratch project file
     outfile = 'test/Project(obfuscated).sb3'
-    
+
     # Options for renaming
     options = {
         'rename_variables': {
@@ -22,10 +22,10 @@ def main():
             'range_start': 0x4E00,  # Unicode range start (CJK Unified Ideographs)
             'range_end': 0x9FFF   # Unicode range end (CJK Unified Ideographs)
         },
-        # 'rename_sprites': {
-        #     'rename_sprites_to': 'random_hex',  # Rename sprites to random hex values
-        #     'sprites_name_length': 6  # Length of the new names
-        # },
+        'rename_sprites': {
+            'rename_sprites_to': 'random_hex',  # Rename sprites to random hex values
+            'sprites_name_length': 6  # Length of the new names
+        },
         # 'rename_costumes': {
         #     'rename_costumes_to': 'random_hex',  # Rename costumes to random hex values
         #     'costumes_name_length': 6
@@ -64,7 +64,6 @@ if __name__ == '__main__':
 """
 from pathlib import Path
 from logging import captureWarnings
-from copy import deepcopy
 from typing import Callable
 import time
 import json
@@ -75,7 +74,7 @@ from zipfile import ZipFile
 from warnings import warn
 
 __all__ = ['obfuscate', 'OptionError', 'UnknownOption', 'IsNotAScratchFileError']
-__version__ = '2.1'
+__version__ = '2.5'
 
 
 class IsNotAScratchFileError(Exception):
@@ -244,8 +243,24 @@ def rename_sprites(targets: list[dict], options: dict) -> list[dict]:
         list[dict]: A list of dictionaries representing the targets with renamed sprites.
     """
     rename_sprites_to = parse_rename_options(options, 'sprites')
+    names = {}
     for sprite in targets[1:]:
-        sprite['name'] = rename_sprites_to()
+        new_name = rename_sprites_to()
+        names[sprite['name']] = new_name
+        sprite['name'] = new_name
+    for sprite in targets:
+        for key, val in sprite['blocks'].items():
+            menus = {
+                'motion_goto_menu': 'TO',
+                'motion_glideto_menu': 'TO',
+                'motion_pointtowards_menu': 'TOWARDS',
+                'control_create_clone_of_menu': 'CLONE_OPTION',
+                'sensing_touchingobjectmenu': 'TOUCHINGOBJECTMENU',
+                'sensing_of_object_menu': 'OBJECT',
+            }
+            for menu_name, field_name in menus.items():
+                if (val['opcode'] == menu_name) and ((name := val['fields'][field_name][0]) in names):
+                    sprite['blocks'][key]['fields'][field_name][0] = names[name]
     return targets
 
 
@@ -315,19 +330,18 @@ def rename_my_blocks(targets: list[dict], options: dict) -> list[dict]:
     """
     rename_my_blocks_to = parse_rename_options(options, 'my_blocks')
     names = {}
-    deepcopied_target = deepcopy(targets)
-    for i, target in enumerate(deepcopied_target):
+    for target in targets:
         for key, val in target['blocks'].items():
             if val['opcode'] == 'procedures_prototype':
                 original_proccode = val['mutation']['proccode']
                 new_proccode = '%s %s' % (rename_my_blocks_to(), ' '.join(re.findall(r'%[nsb]', original_proccode)))
                 names[original_proccode] = new_proccode
-                targets[i]['blocks'][key]['mutation']['proccode'] = new_proccode
-    for i, target in enumerate(deepcopied_target):
+                target['blocks'][key]['mutation']['proccode'] = new_proccode
+    for target in targets:
         for key, val in target['blocks'].items():
             if val['opcode'] == 'procedures_call':
                 original_proccode = val['mutation']['proccode']
-                targets[i]['blocks'][key]['mutation']['proccode'] = names[original_proccode]
+                target['blocks'][key]['mutation']['proccode'] = names[original_proccode]
     return targets
 
 
@@ -347,7 +361,7 @@ def convert_integers_to_hexadecimal(targets: list[dict], convert: bool) -> list[
             for key, val in target['blocks'].items():
                 if (inputs := val['inputs']) and inputs:
                     for k, v in inputs.items():
-                        if v[1] and v[1][0] == 4 and re.match(r'^-?\d+$', (num := v[1][1])):
+                        if v[1] and v[1][0] == 4 and re.match(r'^\d+$', (num := v[1][1])):
                             target['blocks'][key]['inputs'][k][1][1] = hex(int(num))
     return targets
 
