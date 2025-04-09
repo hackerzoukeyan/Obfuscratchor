@@ -1,6 +1,6 @@
 [![image](icon.png)](https://obfuscratchor.pythonanywhere.com/)
 # Obfuscratchor: A simple obfuscation tool for Scratch.
-[Open the website](https://obfuscratchor.pythonanywhere.com/)
+[Open the website](https://obfuscratchor.pythonanywhere.com/)  
 example usage:
 ```python
 # Sample Program to Use the Obfuscation Module
