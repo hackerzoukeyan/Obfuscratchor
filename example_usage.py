@@ -1,10 +1,10 @@
-# Sample Program to Use the Obfuscation Module
+# Sample program to use the Obfuscratchor module
 from obfuscratchor import obfuscate
 
 def main():
     # Input and output file names
-    infile = 'example.sb3'  # Replace with your Scratch project file
-    outfile = 'obfuscated_example.sb3'
+    infile = 'test/Project.sb3'  # Replace with your Scratch project file
+    outfile = 'test/Project(obfuscated).sb3'
 
     # Options for renaming
     options = {
@@ -22,34 +22,36 @@ def main():
             'rename_sprites_to': 'random_hex',  # Rename sprites to random hex values
             'sprites_name_length': 6  # Length of the new names
         },
-        'rename_costumes': {
-            'rename_costumes_to': 'random_hex',  # Rename costumes to random hex values
-            'costumes_name_length': 6
-        },
-        'rename_sounds': {
-            'rename_sounds_to': 'random_unicode_char_range',  # Rename sounds to random unicode characters
-            'sounds_name_length': 8,
-            'range_start': 0xE000,  # Unicode Private Use Area start
-            'range_end': 0xF8FF   # Unicode Private Use Area end
-        },
-        'rename_backdrops': {
-            'rename_backdrops_to': 'random_hex',  # Rename backdrops to random hex values
-            'backdrops_name_length': 6
-        },
+        # 'rename_costumes': {
+        #     'rename_costumes_to': 'random_hex',  # Rename costumes to random hex values
+        #     'costumes_name_length': 6
+        # },
+        # 'rename_sounds': {
+        #     'rename_sounds_to': 'random_unicode_char_range',  # Rename sounds to random unicode characters
+        #     'sounds_name_length': 8,
+        #     'range_start': 0xE000,  # Unicode Private Use Area start
+        #     'range_end': 0xF8FF   # Unicode Private Use Area end
+        # },
+        # 'rename_backdrops': {
+        #     'rename_backdrops_to': 'random_hex',  # Rename backdrops to random hex values
+        #     'backdrops_name_length': 6
+        # },
         'rename_my_blocks': {
             'rename_my_blocks_to': 'random_unicode_char_range',  # Rename my blocks to random unicode characters
             'my_blocks_name_length': 8,
             'range_start': 0xE000,  # Unicode Private Use Area start
             'range_end': 0xF8FF   # Unicode Private Use Area end
         },
+        'convert_integers_to_hexadecimal': True,  # Convert integers to hexadecimal
     }
 
     try:
         # Call the obfuscate function
         elapsed_time = obfuscate(infile, outfile, options)
-        print(f"Obfuscation completed in {elapsed_time:.2f} seconds.")
+        print(f'Obfuscation completed in {elapsed_time:.2f} seconds.')
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f'An error occurred:')
+        raise
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
