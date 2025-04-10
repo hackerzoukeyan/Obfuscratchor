@@ -4,7 +4,7 @@
 example usage:
 ```python
 # Sample Program to Use the Obfuscation Module
-from obfuscratchor import obfuscate
+from Obfuscratchor import obfuscate
 
 def main():
     # Input and output file names
