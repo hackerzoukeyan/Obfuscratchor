@@ -1,6 +1,9 @@
 [![image](icon.png)](https://obfuscratchor.pythonanywhere.com/)
 # Obfuscratchor: A simple obfuscation tool for Scratch.
 [Open the website](https://obfuscratchor.pythonanywhere.com/)  
+  
+use pip to install: `pip install -U Obfuscratchor`  
+  
 example usage:
 ```python
 # Sample Program to Use the Obfuscation Module
