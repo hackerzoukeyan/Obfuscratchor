@@ -1,6 +1,7 @@
 """
-# Obfuscratchor: A simple obfuscation tool for Scratch.
-example usage:
+# Obfuscratchor: A simple obfuscation tool for Scratch.  
+**WARNING: Some Scratch projects may not work properly after obfuscation! The file size of the obfuscated Scratch project will be larger!**  
+example usage:  
 ```python
 # Sample program to use the Obfuscratchor module
 from Obfuscratchor import obfuscate
@@ -26,20 +27,20 @@ def main():
             'rename_sprites_to': 'random_hex',  # Rename sprites to random hex values
             'sprites_name_length': 6  # Length of the new names
         },
-        # 'rename_costumes': {
-        #     'rename_costumes_to': 'random_hex',  # Rename costumes to random hex values
-        #     'costumes_name_length': 6
-        # },
-        # 'rename_sounds': {
-        #     'rename_sounds_to': 'random_unicode_char_range',  # Rename sounds to random unicode characters
-        #     'sounds_name_length': 8,
-        #     'range_start': 0xE000,  # Unicode Private Use Area start
-        #     'range_end': 0xF8FF   # Unicode Private Use Area end
-        # },
-        # 'rename_backdrops': {
-        #     'rename_backdrops_to': 'random_hex',  # Rename backdrops to random hex values
-        #     'backdrops_name_length': 6
-        # },
+        'rename_costumes': {
+            'rename_costumes_to': 'random_hex',  # Rename costumes to random hex values
+            'costumes_name_length': 6
+        },
+        'rename_sounds': {
+            'rename_sounds_to': 'random_unicode_char_range',  # Rename sounds to random unicode characters
+            'sounds_name_length': 8,
+            'range_start': 0xE000,  # Unicode Private Use Area start
+            'range_end': 0xF8FF   # Unicode Private Use Area end
+        },
+        'rename_backdrops': {
+            'rename_backdrops_to': 'random_hex',  # Rename backdrops to random hex values
+            'backdrops_name_length': 6
+        },
         'rename_my_blocks': {
             'rename_my_blocks_to': 'random_unicode_char_range',  # Rename my blocks to random unicode characters
             'my_blocks_name_length': 8,
@@ -74,7 +75,7 @@ from zipfile import ZipFile
 from warnings import warn
 
 __all__ = ['obfuscate', 'OptionError', 'UnknownOption', 'IsNotAScratchFileError']
-__version__ = '2.5'
+__version__ = '2.6'
 
 
 class IsNotAScratchFileError(Exception):
@@ -161,7 +162,7 @@ def parse_rename_options(options: dict, name_name: str) -> Callable[[], str]:
         OptionError: If the provided options are invalid or missing.
     """
     rename_vars_to = options.pop('rename_%s_to' % name_name, ...)
-    var_name_len = options.pop('%s_name_length' % name_name[:-1], 10)
+    var_name_len = options.pop('%s_name_length' % name_name, 10)
     if not isinstance(var_name_len, int):
         raise OptionError('%s_name_length must be an integer.' % name_name)
     if rename_vars_to is ...:
@@ -178,12 +179,21 @@ def parse_rename_options(options: dict, name_name: str) -> Callable[[], str]:
             chr(random.choice(list(range(range_start, range_end + 1))))
             for _ in range(var_name_len)
         )
-    return rename_vars_to
+    def rename_variables_to():
+        names = {}
+        new_name = rename_vars_to()         
+        if new_name in names:
+            new_name += str(names[new_name])
+        names.setdefault(new_name, 1)
+        names[new_name] += 1
+        return new_name
+    return rename_variables_to
 
 
-def rename_variables(targets: list[dict], options: dict) -> list[dict]:
+def rename_variables(targets: list[dict], options: dict) -> None:
     """
     Rename variables in the Scratch project according to the provided options.
+    **Tip: Don't worry about obfuscation on stage, variables are only obfuscated in the program.**
 
     Parameters:
         targets (list[dict]): A list of dictionaries representing the targets in the Scratch project.
@@ -203,19 +213,19 @@ def rename_variables(targets: list[dict], options: dict) -> list[dict]:
             for key in list(sprite['variables'].keys()):
                 sprite_vars = sprite['variables']
                 sprite_vars[key][0] = rename_vars_to()
-    return targets
 
 
-def rename_lists(targets: list[dict], options: dict) -> list[dict]:
+def rename_lists(targets: list[dict], options: dict) -> None:
     """
     Rename lists in the Scratch project according to the provided options.
+    **WARNING: Lists will obfuscated on stage.**
 
     Parameters:
         targets (list[dict]): A list of dictionaries representing the targets in the Scratch project.
         options (dict): A dictionary containing the renaming options for lists.
 
     Returns:
-        list[dict]: A list of dictionaries representing the targets with renamed lists.
+        None
     """
     rename_vars_to = parse_rename_options(options, 'lists')
     if options.pop('rename_public_lists', True):
@@ -228,10 +238,9 @@ def rename_lists(targets: list[dict], options: dict) -> list[dict]:
             for key in list(sprite['lists'].keys()):
                 sprite_vars = sprite['lists']
                 sprite_vars[key][0] = rename_vars_to()
-    return targets
 
 
-def rename_sprites(targets: list[dict], options: dict) -> list[dict]:
+def rename_sprites(targets: list[dict], options: dict) -> None:
     """
     Rename sprites in the Scratch project according to the provided options.
 
@@ -240,7 +249,7 @@ def rename_sprites(targets: list[dict], options: dict) -> list[dict]:
         options (dict): A dictionary containing the renaming options for sprites.
 
     Returns:
-        list[dict]: A list of dictionaries representing the targets with renamed sprites.
+        None
     """
     rename_sprites_to = parse_rename_options(options, 'sprites')
     names = {}
@@ -261,10 +270,33 @@ def rename_sprites(targets: list[dict], options: dict) -> list[dict]:
             for menu_name, field_name in menus.items():
                 if (val['opcode'] == menu_name) and ((name := val['fields'][field_name][0]) in names):
                     sprite['blocks'][key]['fields'][field_name][0] = names[name]
-    return targets
 
 
-def rename_costumes(targets: list[dict], options: dict) -> list[dict]:
+def replace_inputs_and_fields(targets: list[dict], names: dict[int, dict], inputs: dict[str, str], fields: dict[str, str]) -> None:
+    """
+    Replace inputs and fields.
+
+    Parameters:
+        targets (list[dict]): A list of dictionaries representing the targets in the Scratch project.
+        names (dict[int, dict]): Names to replace.
+        inputs (dict[str, str]): Inputs to replace.
+        fields (dict[str, str]): fields to replace.
+
+    Returns:
+        None
+    """
+    for idx, names_ in names.items():
+        sprite = targets[idx]
+        for key, val in sprite['blocks'].items():
+            for field_opcode, field_name in fields.items():
+                if (val['opcode'] == field_opcode) and ((name := val['fields'][field_name][0]) in names_):
+                    sprite['blocks'][key]['fields'][field_name][0] = names_[name]
+            for input_opcode, input_name in inputs.items():
+                if (val['opcode'] == input_opcode) and ((name := val['inputs'][input_name][1]) in names_):
+                    sprite['blocks'][key]['inputs'][input_name][1] = names_[name]
+
+
+def rename_costumes(targets: list[dict], options: dict) -> None:
     """
     Rename costumes in the Scratch project according to the provided options.
 
@@ -273,16 +305,25 @@ def rename_costumes(targets: list[dict], options: dict) -> list[dict]:
         options (dict): A dictionary containing the renaming options for costumes.
 
     Returns:
-        list[dict]: A list of dictionaries representing the targets with renamed costumes.
+        None
     """
     rename_costumes_to = parse_rename_options(options, 'costumes')
-    for sprite in targets[1:]:
+    names = {}
+    for idx, sprite in enumerate(targets[1:], 1):
         for costume in sprite['costumes']:
-            costume['name'] = rename_costumes_to()
-    return targets
+            new_name = rename_costumes_to()
+            names.setdefault(idx, {})[costume['name']] = new_name
+            costume['name'] = new_name
+    inputs = {
+        'looks_switchcostumeto': 'COSTUME',
+    }
+    fields = {
+        'looks_costume': 'COSTUME',
+    }
+    replace_inputs_and_fields(targets, names, inputs, fields)
 
 
-def rename_sounds(targets: list[dict], options: dict) -> list[dict]:
+def rename_sounds(targets: list[dict], options: dict) -> None:
     """
     Rename sounds in the Scratch project according to the provided options.
 
@@ -291,16 +332,22 @@ def rename_sounds(targets: list[dict], options: dict) -> list[dict]:
         options (dict): A dictionary containing the renaming options for sounds.
 
     Returns:
-        list[dict]: A list of dictionaries representing the targets with renamed sounds.
+        None
     """
     rename_sounds_to = parse_rename_options(options, 'sounds')
-    for sprite in targets:
+    names = {}
+    for idx, sprite in enumerate(targets):
         for sound in sprite['sounds']:
-            sound['name'] = rename_sounds_to()
-    return targets
+            new_name = rename_sounds_to()
+            names.setdefault(idx, {})[sound['name']] = new_name
+            sound['name'] = new_name
+    fields = {
+        'sound_sounds_menu': 'SOUND_MENU',
+    }
+    replace_inputs_and_fields(targets, names, {}, fields)
 
 
-def rename_backdrops(targets: list[dict], options: dict) -> list[dict]:
+def rename_backdrops(targets: list[dict], options: dict) -> None:
     """
     Rename backdrops in the Scratch project according to the provided options.
 
@@ -309,15 +356,32 @@ def rename_backdrops(targets: list[dict], options: dict) -> list[dict]:
         options (dict): A dictionary containing the renaming options for backdrops.
 
     Returns:
-        list[dict]: A list of dictionaries representing the targets with renamed backdrops.
+        None
     """
     rename_backdrops_to = parse_rename_options(options, 'backdrops')
+    names = {}
     for backdrop in targets[0]['costumes']:
-        backdrop['name'] = rename_backdrops_to()
-    return targets
+        new_name = rename_backdrops_to()
+        names[backdrop['name']] = new_name
+        backdrop['name'] = new_name
+    inputs = {
+        'looks_switchbackdropto': 'BACKDROP',
+        'looks_switchbackdroptoandwait': 'BACKDROP',
+    }
+    fields = {
+        'looks_backdrops': 'BACKDROP',
+    }
+    for target in targets:
+        for key, val in target['blocks'].items():
+            for field_opcode, field_name in fields.items():
+                if (val['opcode'] == field_opcode) and ((name := val['fields'][field_name][0]) in names):
+                    target['blocks'][key]['fields'][field_name][0] = names[name]
+            for input_opcode, input_name in inputs.items():
+                if (val['opcode'] == input_opcode) and ((name := val['inputs'][input_name][1]) in names):
+                    target['blocks'][key]['inputs'][input_name][1] = names[name]
 
 
-def rename_my_blocks(targets: list[dict], options: dict) -> list[dict]:
+def rename_my_blocks(targets: list[dict], options: dict) -> None:
     """
     Rename my blocks in the Scratch project according to the provided options.
 
@@ -326,35 +390,36 @@ def rename_my_blocks(targets: list[dict], options: dict) -> list[dict]:
         options (dict): A dictionary containing the renaming options for backdrops.
 
     Returns:
-        list[dict]: A list of dictionaries representing the targets with renamed backdrops.
+        None
     """
     rename_my_blocks_to = parse_rename_options(options, 'my_blocks')
-    names = {}
-    for target in targets:
+    proccodes = {}
+    for idx, target in enumerate(targets):
         for key, val in target['blocks'].items():
             if val['opcode'] == 'procedures_prototype':
                 original_proccode = val['mutation']['proccode']
                 new_proccode = '%s %s' % (rename_my_blocks_to(), ' '.join(re.findall(r'%[nsb]', original_proccode)))
-                names[original_proccode] = new_proccode
+                proccodes.setdefault(idx, {})[original_proccode] = new_proccode
                 target['blocks'][key]['mutation']['proccode'] = new_proccode
-    for target in targets:
+    for idx in proccodes:
+        target = targets[idx]
         for key, val in target['blocks'].items():
             if val['opcode'] == 'procedures_call':
                 original_proccode = val['mutation']['proccode']
-                target['blocks'][key]['mutation']['proccode'] = names[original_proccode]
-    return targets
+                target['blocks'][key]['mutation']['proccode'] = proccodes[idx][original_proccode]
 
 
-def convert_integers_to_hexadecimal(targets: list[dict], convert: bool) -> list[dict]:
+def convert_integers_to_hexadecimal(targets: list[dict], convert: bool) -> None:
     """
     Convert integers in the Scratch project to hexadecimal format according to the provided options.
+    **WARNING: Natural numbers only**
 
     Parameters:
         targets (list[dict]): A list of dictionaries representing the targets in the Scratch project.
         convert (bool): Convert integers to hexadecimal format?
 
     Returns:
-        list[dict]: A list of dictionaries representing the targets with converted numbers.
+        None
     """
     if convert:
         for target in targets:
@@ -363,7 +428,6 @@ def convert_integers_to_hexadecimal(targets: list[dict], convert: bool) -> list[
                     for k, v in inputs.items():
                         if v[1] and v[1][0] == 4 and re.match(r'^\d+$', (num := v[1][1])):
                             target['blocks'][key]['inputs'][k][1][1] = hex(int(num))
-    return targets
 
 
 def obfuscate(infile: str, outfile: str, options: dict) -> float:
@@ -402,7 +466,7 @@ def obfuscate(infile: str, outfile: str, options: dict) -> float:
     }
     for option_name, option_type in option_names.items():
         if option_name in options and isinstance((option := options.pop(option_name)), option_type):
-            targets = globals()[option_name](targets, option)
+            globals()[option_name](targets, option)
     if options:
         for option in options:
             warn(f"Unknown option encountered: {option}", UnknownOption, 2)
