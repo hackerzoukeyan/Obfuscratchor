@@ -1,4 +1,5 @@
 # Obfuscratchor: A simple obfuscation tool for Scratch.  
+[Open the online obfuscation website](https://obfuscratchor.pythonanywhere.com/)  
 **WARNING: Some Scratch projects may not work properly after obfuscation! The file size of the obfuscated Scratch project will be larger!**  
 example usage:  
 ```python
