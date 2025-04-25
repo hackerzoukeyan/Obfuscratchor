@@ -75,7 +75,7 @@ from zipfile import ZipFile
 from warnings import warn
 
 __all__ = ['obfuscate', 'OptionError', 'UnknownOption', 'IsNotAScratchFileError']
-__version__ = '2.6'
+__version__ = '2.7'
 
 
 class IsNotAScratchFileError(Exception):
