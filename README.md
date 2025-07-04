@@ -1,5 +1,5 @@
 # Obfuscratchor: A simple obfuscation tool for Scratch.  
-[Open the online obfuscation website](https://obfuscratchor.pythonanywhere.com/)  
+[Open the online obfuscation website](https://obfuscratchor.onrender.com/)  
 **WARNING: Some Scratch projects may not work properly after obfuscation! The file size of the obfuscated Scratch project will be larger!**  
 example usage:  
 ```python
@@ -47,6 +47,10 @@ def main():
             'range_start': 0xE000,  # Unicode Private Use Area start
             'range_end': 0xF8FF   # Unicode Private Use Area end
         },
+        'rename_arguments_for_my_blocks': {
+            'rename_arguments_for_my_blocks_to': 'random_hex',  # Rename arguments for my blocks to random hex values
+            'arguments_for_my_blocks_name_length': 20
+        }
         'convert_integers_to_hexadecimal': True,  # Convert integers to hexadecimal
     }
 
