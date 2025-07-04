@@ -1,5 +1,6 @@
 """
 # Obfuscratchor: A simple obfuscation tool for Scratch.  
+[Open the online obfuscation website](https://obfuscratchor.onrender.com/)  
 **WARNING: Some Scratch projects may not work properly after obfuscation! The file size of the obfuscated Scratch project will be larger!**  
 example usage:  
 ```python
@@ -47,6 +48,10 @@ def main():
             'range_start': 0xE000,  # Unicode Private Use Area start
             'range_end': 0xF8FF   # Unicode Private Use Area end
         },
+        'rename_arguments_for_my_blocks': {
+            'rename_arguments_for_my_blocks_to': 'random_hex',  # Rename arguments for my blocks to random hex values
+            'arguments_for_my_blocks_name_length': 20
+        }
         'convert_integers_to_hexadecimal': True,  # Convert integers to hexadecimal
     }
 
@@ -64,7 +69,6 @@ if __name__ == '__main__':
 ```
 """
 from pathlib import Path
-from logging import captureWarnings
 from typing import Callable
 import time
 import json
@@ -75,22 +79,19 @@ from zipfile import ZipFile
 from warnings import warn
 
 __all__ = ['obfuscate', 'OptionError', 'UnknownOption', 'IsNotAScratchFileError']
-__version__ = '2.7'
+__version__ = '2.8'
 
 
 class IsNotAScratchFileError(Exception):
     """Custom exception raised when the provided file is not a valid Scratch (.sb3) file."""
-    pass
 
 
 class UnknownOption(Warning):
     """Custom warning raised when an unknown option is encountered in the provided options dictionary."""
-    pass
 
 
 class OptionError(Exception):
     """Custom exception raised when there is an error in the provided options dictionary."""
-    pass
 
 
 def load_project(filename: str) -> dict:
@@ -141,10 +142,13 @@ def save_project(infile: str, outfile: str, project: dict) -> None:
     if outpath.suffix != '.sb3':
         raise IsNotAScratchFileError(f"The output file {outpath} is not a valid Scratch (.sb3) file.")
     outpath.write_bytes(inpath.read_bytes())
-    with ZipFile(outpath, 'a') as zipfile:
-        captureWarnings(True)
-        zipfile.writestr('project.json', json.dumps(project))
-        captureWarnings(False)
+    with ZipFile(inpath) as inzip:
+        with ZipFile(outpath, 'w') as outzip:
+            for item in inzip.infolist():
+                if item.filename == 'project.json':
+                    outzip.writestr(item, json.dumps(project))
+                else:
+                    outzip.writestr(item, inzip.read(item.filename))
 
 
 def parse_rename_options(options: dict, name_name: str) -> Callable[[], str]:
@@ -161,33 +165,33 @@ def parse_rename_options(options: dict, name_name: str) -> Callable[[], str]:
     Raises:
         OptionError: If the provided options are invalid or missing.
     """
-    rename_vars_to = options.pop('rename_%s_to' % name_name, ...)
-    var_name_len = options.pop('%s_name_length' % name_name, 10)
-    if not isinstance(var_name_len, int):
+    rename_to = options.pop('rename_%s_to' % name_name, ...)
+    name_len = options.pop('%s_name_length' % name_name, 10)
+    if not isinstance(name_len, int):
         raise OptionError('%s_name_length must be an integer.' % name_name)
-    if rename_vars_to is ...:
+    if rename_to is ...:
         raise OptionError('rename_%s_to cannot be null.' % name_name)
-    elif rename_vars_to == 'random_hex':
-        rename_vars_to = lambda: secrets.token_hex(var_name_len)
-    elif rename_vars_to == 'random_unicode_char_range':
+    elif rename_to == 'random_hex':
+        rename_to = lambda: secrets.token_hex(name_len)
+    elif rename_to == 'random_unicode_char_range':
         if (range_start := options.pop('range_start', None)) > \
                 (range_end := options.pop('range_end', None)):
             raise OptionError('range_start must be less than range_end.')
         if not (isinstance(range_start, int) and isinstance(range_end, int)):
             raise OptionError('range_start and range_end must be integers.')
-        rename_vars_to = lambda: ''.join(
+        rename_to = lambda: ''.join(
             chr(random.choice(list(range(range_start, range_end + 1))))
-            for _ in range(var_name_len)
+            for _ in range(name_len)
         )
-    def rename_variables_to():
+    def _rename_to():
         names = {}
-        new_name = rename_vars_to()         
+        new_name = rename_to()         
         if new_name in names:
             new_name += str(names[new_name])
         names.setdefault(new_name, 1)
         names[new_name] += 1
         return new_name
-    return rename_variables_to
+    return _rename_to
 
 
 def rename_variables(targets: list[dict], options: dict) -> None:
@@ -409,6 +413,38 @@ def rename_my_blocks(targets: list[dict], options: dict) -> None:
                 target['blocks'][key]['mutation']['proccode'] = proccodes[idx][original_proccode]
 
 
+def rename_arguments_for_my_blocks(targets: list[dict], options: dict) -> None:
+    """
+    Rename arguments for my blocks in the Scratch project according to the provided options.
+
+    Parameters:
+        targets (list[dict]): A list of dictionaries representing the targets in the Scratch project.
+        options (dict): A dictionary containing the renaming options for backdrops.
+
+    Returns:
+        None
+    """
+    rename_args_to = parse_rename_options(options, 'arguments_for_my_blocks')
+    my_blocks = []
+    names = {}
+    for idx, target in enumerate(targets):
+        for key, val in target['blocks'].items():
+            if val['opcode'] == 'procedures_prototype':
+                old_args = eval(val['mutation']['argumentnames'])
+                val['mutation']['argumentnames'] = json.dumps(
+                    [
+                        names.setdefault(arg, rename_args_to())
+                        for arg in old_args
+                    ]
+                )
+    print(names)
+    for idx, target in enumerate(targets):
+        for key, val in target['blocks'].items():
+            if val['opcode'] in ['argument_reporter_string_number', 'argument_reporter_boolean']:
+                if new_arg := names.get(val['fields']['VALUE'][0]):
+                    val['fields']['VALUE'][0] = new_arg
+
+
 def convert_integers_to_hexadecimal(targets: list[dict], convert: bool) -> None:
     """
     Convert integers in the Scratch project to hexadecimal format according to the provided options.
@@ -462,6 +498,7 @@ def obfuscate(infile: str, outfile: str, options: dict) -> float:
         'rename_sounds': dict,
         'rename_backdrops': dict,
         'rename_my_blocks': dict,
+        'rename_arguments_for_my_blocks': dict,
         'convert_integers_to_hexadecimal': bool,
     }
     for option_name, option_type in option_names.items():
